@@ -8,7 +8,7 @@ const envSchema = z.object({
   PORT: z.string().default("3000").transform(Number),
   JWT_SECRET: z.string().min(1, "JWT_SECRET is required"),
   JWT_REFRESH_SECRET: z.string().optional(),
-  JWT_EXPIRES_IN: z.string().default("1h"),
+  REDIS_URL: z.string(),
 });
 
 const env = envSchema.safeParse(process.env);
@@ -24,11 +24,15 @@ export const config = {
   jwt: {
     secret: env.data.JWT_SECRET,
     refreshSecret: env.data.JWT_REFRESH_SECRET || env.data.JWT_SECRET,
-    expiresIn: env.data.JWT_EXPIRES_IN,
+  },
+  redis: {
+    url: env.data.REDIS_URL,
   },
   isProduction: env.data.NODE_ENV === "production",
   isDevelopment: env.data.NODE_ENV === "development",
-  isTest: env.data.NODE_ENV === "test",
 } as const;
+
+export const isDevelopment = () => config.isDevelopment;
+export const isProduction = () => config.isProduction;
 
 export type Config = typeof config;

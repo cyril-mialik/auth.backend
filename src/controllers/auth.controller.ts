@@ -1,8 +1,11 @@
 import { Request, Response } from "express";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-
-const users: any[] = [];
+import { config } from "../config/env.js";
+import {
+  createUser,
+  findUserByEmailWithPassword,
+  validatePassword,
+} from "../services/user.service.js";
 
 export const registration = async (
   req: Request,
@@ -10,30 +13,19 @@ export const registration = async (
 ): Promise<void> => {
   try {
     const { email, password } = req.body;
+    const user = await createUser(email, password);
 
-    const existingUser = users.find((u) => u.email === email);
-    if (existingUser) {
+    res.status(201).json({
+      message: "User created successfully",
+      user,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "User already exists") {
       res.status(400).json({ error: "User already exists" });
       return;
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser: any = {
-      id: users.length + 1,
-      email,
-      password: hashedPassword,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    users.push(newUser);
-
-    res.status(201).json({
-      message: "User created successfully",
-      user: { id: newUser.id, email: newUser.email },
-    });
-  } catch (error) {
+    console.error("Registration error:", error);
     res.status(500).json({ error: "Registration failed" });
   }
 };
@@ -42,13 +34,15 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 
-    const user = users.find((u) => u.email === email);
+    console.log(await findUserByEmailWithPassword(email));
+
+    const user = await findUserByEmailWithPassword(email);
     if (!user) {
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }
 
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    const isValidPassword = await validatePassword(user, password);
     if (!isValidPassword) {
       res.status(401).json({ error: "Invalid credentials" });
       return;
@@ -56,16 +50,22 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     const token = jwt.sign(
       { userId: user.id, email: user.email },
-      process.env.JWT_SECRET || "secret-key",
+      config.jwt.secret,
       { expiresIn: "1h" },
     );
 
     res.json({
       message: "Login successful",
       token,
-      user: { id: user.id, email: user.email },
+      user: {
+        id: user.id,
+        email: user.email,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
     });
   } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({ error: "Login failed" });
   }
 };
