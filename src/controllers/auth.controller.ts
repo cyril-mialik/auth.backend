@@ -34,8 +34,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 
-    console.log(await findUserByEmailWithPassword(email));
-
     const user = await findUserByEmailWithPassword(email);
     if (!user) {
       res.status(401).json({ error: "Invalid credentials" });
